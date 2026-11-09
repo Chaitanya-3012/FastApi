@@ -4,6 +4,18 @@ import './App.css'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
 
+const STATUS_COLORS = {
+  pending: '#fff3e0',
+  complete: '#e8f5e9',
+  doing: '#e3f2fd',
+}
+
+const STATUS_LABELS = {
+  pending: 'Pending',
+  complete: 'Complete',
+  doing: 'Doing',
+}
+
 function App() {
   const [tasks, setTasks] = useState([])
   const [input, setInput] = useState('')
@@ -11,6 +23,8 @@ function App() {
   const [editInput, setEditInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+
+  const nextId = () => (tasks.length ? Math.max(...tasks.map(t => t.id)) + 1 : 1)
 
   const fetchTasks = async () => {
     try {
@@ -31,7 +45,8 @@ function App() {
   const addTask = async () => {
     if (!input.trim()) return
     try {
-      const { data } = await axios.post(`${API_BASE}/tasks`, { text: input.trim() })
+      const newTask = { id: nextId(), text: input.trim(), status: 'pending' }
+      const { data } = await axios.post(`${API_BASE}/tasks`, newTask)
       setTasks([...tasks, data])
       setInput('')
     } catch (err) {
@@ -49,9 +64,17 @@ function App() {
   }
 
   const toggleComplete = async (id) => {
-    const task = tasks.find(t => t.id === id)
     try {
-      const { data } = await axios.put(`${API_BASE}/tasks/${id}`, { completed: !task.completed })
+      const { data } = await axios.put(`${API_BASE}/tasks/toggle-complete/${id}`)
+      setTasks(tasks.map(t => t.id === id ? data : t))
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  const toggleDoing = async (id) => {
+    try {
+      const { data } = await axios.put(`${API_BASE}/tasks/toggle-doing/${id}`)
       setTasks(tasks.map(t => t.id === id ? data : t))
     } catch (err) {
       setError(err.message)
@@ -65,9 +88,14 @@ function App() {
 
   const saveEdit = async (id) => {
     if (!editInput.trim()) return
+    const task = tasks.find(t => t.id === id)
     try {
-      const { data } = await axios.put(`${API_BASE}/tasks/${id}`, { text: editInput.trim() })
-      setTasks(tasks.map(t => t.id === id ? data : t))
+      await axios.put(`${API_BASE}/tasks/edit/${id}`, {
+        id,
+        text: editInput.trim(),
+        status: task.status,
+      })
+      setTasks(tasks.map(t => t.id === id ? { ...t, text: editInput.trim() } : t))
       setEditingId(null)
       setEditInput('')
     } catch (err) {
@@ -103,7 +131,11 @@ function App() {
             <li className="empty">No tasks yet. Add one above!</li>
           ) : (
             tasks.map(task => (
-              <li key={task.id} className={task.completed ? 'completed' : ''}>
+              <li
+                key={task.id}
+                className="task-item-row"
+                style={{ backgroundColor: STATUS_COLORS[task.status] || '#fff' }}
+              >
                 {editingId === task.id ? (
                   <div className="edit-form">
                     <input
@@ -118,15 +150,22 @@ function App() {
                   </div>
                 ) : (
                   <>
-                    <label className="task-item">
+                    <div className="task-info">
                       <input
                         type="checkbox"
-                        checked={task.completed}
+                        checked={task.status === 'complete'}
                         onChange={() => toggleComplete(task.id)}
                       />
-                      <span>{task.text}</span>
-                    </label>
+                      <span className="status-badge">{STATUS_LABELS[task.status]}</span>
+                      <span className="task-text">{task.text}</span>
+                    </div>
                     <div className="task-actions">
+                      <button
+                        onClick={() => toggleDoing(task.id)}
+                        className={`status-btn ${task.status === 'doing' ? 'active' : ''}`}
+                      >
+                        Doing
+                      </button>
                       <button onClick={() => startEdit(task)}>Edit</button>
                       <button onClick={() => deleteTask(task.id)}>Delete</button>
                     </div>
@@ -138,8 +177,9 @@ function App() {
         </ul>
         <div className="stats">
           <span>Total: {tasks.length}</span>
-          <span>Completed: {tasks.filter(t => t.completed).length}</span>
-          <span>Pending: {tasks.filter(t => !t.completed).length}</span>
+          <span>Pending: {tasks.filter(t => t.status === 'pending').length}</span>
+          <span>Doing: {tasks.filter(t => t.status === 'doing').length}</span>
+          <span>Complete: {tasks.filter(t => t.status === 'complete').length}</span>
         </div>
       </div>
     </div>
