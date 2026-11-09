@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .models import Task
+from .models import Task, TaskCreate
 
 app = FastAPI()
 
@@ -31,20 +31,22 @@ def get_tasks():
 
 
 # create
-@app.post("/tasks")
-def create_task(task: Task):
-    tasks_data.append(task)
-    return task
+@app.post("/tasks", response_model=Task)
+def create_task(task: TaskCreate):
+    new_id = max((t.id for t in tasks_data), default=0) + 1
+    new_task = Task(id=new_id, text=task.text, status=task.status)
+    tasks_data.append(new_task)
+    return new_task
 
 
-# update complete
-@app.put("/tasks/done/{id}")
-def update_task(id: int):
+# update status
+@app.put("/tasks/status/{id}")
+def update_task(id: int, status: str):
     for i in range(0, len(tasks_data)):
         if tasks_data[i].id == id:
-            tasks_data[i].status = "complete"
-            break
-    return {"message": "Task updated successfully."}
+            tasks_data[i].status = status
+            return tasks_data[i]
+    return {"message": "Task not found."}
 
 
 # update task

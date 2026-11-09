@@ -24,8 +24,6 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  const nextId = () => (tasks.length ? Math.max(...tasks.map(t => t.id)) + 1 : 1)
-
   const fetchTasks = async () => {
     try {
       setLoading(true)
@@ -45,8 +43,10 @@ function App() {
   const addTask = async () => {
     if (!input.trim()) return
     try {
-      const newTask = { id: nextId(), text: input.trim(), status: 'pending' }
-      const { data } = await axios.post(`${API_BASE}/tasks`, newTask)
+      const { data } = await axios.post(`${API_BASE}/tasks`, {
+        text: input.trim(),
+        status: 'pending',
+      })
       setTasks([...tasks, data])
       setInput('')
     } catch (err) {
@@ -63,22 +63,23 @@ function App() {
     }
   }
 
-  const toggleComplete = async (id) => {
+  const setStatus = async (id, status) => {
     try {
-      const { data } = await axios.put(`${API_BASE}/tasks/toggle-complete/${id}`)
-      setTasks(tasks.map(t => t.id === id ? data : t))
+      await axios.put(`${API_BASE}/tasks/status/${id}?status=${status}`)
+      setTasks(tasks.map(t => t.id === id ? { ...t, status } : t))
     } catch (err) {
       setError(err.message)
     }
   }
 
+  const toggleComplete = async (id) => {
+    const task = tasks.find(t => t.id === id)
+    await setStatus(id, task.status === 'complete' ? 'pending' : 'complete')
+  }
+
   const toggleDoing = async (id) => {
-    try {
-      const { data } = await axios.put(`${API_BASE}/tasks/toggle-doing/${id}`)
-      setTasks(tasks.map(t => t.id === id ? data : t))
-    } catch (err) {
-      setError(err.message)
-    }
+    const task = tasks.find(t => t.id === id)
+    await setStatus(id, task.status === 'doing' ? 'pending' : 'doing')
   }
 
   const startEdit = (task) => {
