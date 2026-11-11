@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .models import Task, TaskCreate
+from .models import Task
+from .db import session
 
 app = FastAPI()
 
@@ -32,7 +33,7 @@ def get_tasks():
 
 # create
 @app.post("/tasks", response_model=Task)
-def create_task(task: TaskCreate):
+def create_task(task: Task):
     new_id = max((t.id for t in tasks_data), default=0) + 1
     new_task = Task(id=new_id, text=task.text, status=task.status)
     tasks_data.append(new_task)

@@ -1,12 +1,9 @@
-from pydantic import BaseModel
-
-
-class TaskCreate(BaseModel):
-    text: str
-    status: str = "pending"
+from typing import Literal
+from pydantic import BaseModel, ConfigDict
 
 
 class Task(BaseModel):
-    id: int
+    model_config = ConfigDict(from_attributes=True)
+    id: int | None = None
     text: str
-    status: str
+    status: Literal["pending", "doing", "complete"] = "pending"
